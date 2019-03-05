@@ -1,4 +1,0 @@
-To retreive the CustAccount from LedgerDimension , use this piece of code
-
-
-custAccount = DimensionStorage::ledgerDimension2AccountNum(bankCodaAccountStatementLines.LedgerDimension);
