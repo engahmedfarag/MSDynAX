@@ -1,0 +1,48 @@
+static void InventOnHand(Args _args)
+{
+    InventDimOnHand         onHand;
+    InventDimOnHandIterator iter;
+    InventDimOnHandMember   member;
+ 
+    ItemId                  itemId;
+    InventDim               inventDimCrit;
+    InventDimParm           inventDimParmCrit, inventDimParmOnHandLevel;
+ 
+    InventDim               inventDim;
+ 
+    InventDimOnHandLevel    level;
+    ;
+ 
+    itemId = '1509';
+ 
+    // Known dimensions
+    inventDimCrit.InventLocationId = '21';
+    inventDimCrit = InventDim::findOrCreate(inventDimCrit);
+ 
+    // Determine which of the known dimensions to use
+    inventDimParmCrit.InventLocationIdFlag = true;
+ 
+    level = InventDimOnHandLevel::DimParm;
+ 
+    // Only matters for level DimParm.  Determines the level of detail returned
+    inventDimParmOnHandLevel.ItemIdFlag = true;
+    inventDimParmOnHandLevel.InventLocationIdFlag = true;
+    inventDimParmOnHandLevel.WMSLocationIdFlag = true;
+    inventDimParmOnHandLevel.InventBatchIdFlag = true;
+ 
+    onHand = InventDimOnHand::newAvailPhysical(itemId, inventDimCrit, InventDimParmCrit, level, inventDimParmOnHandLevel);
+ 
+    iter = onHand.onHandIterator();
+    while (iter.more())
+    {
+        member = iter.value();
+ 
+        inventDim = InventDim::find(member.parmInventDimId());
+ 
+        info(con2str([member.parmItemId(), inventDim.inventLocationId, inventDim.wMSLocationId, inventDim.inventBatchId, member.parmInventQty()]));
+ 
+        iter.next();
+    }
+ 
+    info('Done');
+}
