@@ -1,0 +1,23 @@
+
+
+static void FindOpenSalesLineAvailPhys(Args _args)
+{
+    SalesLine salesline;
+    InventDim inventDim;
+    InventDimParm inventDimParm;
+    InventOnHand inventOnHand;
+    ;
+
+    while select salesLine where salesLine.SalesStatus == SalesStatus::Backorder
+    {
+        inventDim = salesLine.inventDim();
+        inventDimParm.initFromInventDim(inventDim);
+        inventDimParm.WMSLocationIdFlag = NoYes::No;
+        inventOnHand = InventOnHand::newItemDim(salesLine.ItemId, inventDim, inventDimParm);
+        if (inventOnHand.availPhysical())
+        {
+            info(strfmt("Sales Order %1 Line %2 Item Id %3 Available Physical (ignoring Location) %4",
+                salesLine.salesId, salesLine.LineNum, salesLine.ItemId, inventOnHand.availPhysical()));
+        }
+    }
+}
