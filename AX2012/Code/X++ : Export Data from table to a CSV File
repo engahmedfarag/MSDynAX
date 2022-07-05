@@ -1,0 +1,101 @@
+X++ : Export Data from table to a CSV File
+ CSV file itself doesn't contain any formatting information. You can verify this by opening the file in Notepad - you will see the values displayed correctly. When you open CSV in Excel, you can let Excel automatically determine the column data types, or you can define them yourself.
+
+
+
+static void SF_ExportToCSVFile(Args _args)
+
+{
+
+    TextBuffer              textBuffer  = new TextBuffer();
+
+    InventTable             inventTable;
+
+    FileIoPermission        perm;
+
+    counter                 Lines;
+
+
+
+    #define.ExampleFile(@"c:\test\test.csv")
+
+    #define.ExampleOpenMode("W")
+
+    
+
+;
+
+    try
+
+    {
+
+        // Set code access permission to help protect the use of
+
+        perm = new FileIoPermission(#ExampleFile, #ExampleOpenMode);
+
+        perm.assert();
+
+        textBuffer.appendText("Item Id,");//must be "," suffix
+
+        textBuffer.appendText("Item Name,");//must be "," suffix
+
+        textBuffer.appendText("Item Type");
+
+        textBuffer.appendText("\n");//next line must be "\n" suffix
+
+
+
+        while select InventTable
+
+            where   inventTable.ItemId like "04-1*"
+
+        {
+
+            textBuffer.appendText(strfmt("%1,",inventTable.ItemId));
+
+            //must be repace "," to ""
+
+            textBuffer.appendText(strfmt("%1,",global::strReplace(inventTable.itemName(),",","")));
+
+            textBuffer.appendText(enum2str(inventTable.ItemType));
+
+            textBuffer.appendText("\n");
+
+        }
+
+        Lines = textBuffer.numLines();
+
+        try
+
+        {
+
+            if (textBuffer.toFile(#ExampleFile))
+
+                info( strfmt("File Generated as %1.total insert %2 Lines",#ExampleFile,Lines-1));
+
+        }
+
+        catch ( Exception::Error )
+
+        {
+
+            error ("Generated file error.");
+
+        }
+
+        // Close the code access permission scope.
+
+        CodeAccessPermission::revertAssert();
+
+    }
+
+    catch (Exception::Deadlock)
+
+    {
+
+        retry;
+
+    }
+
+
+}
