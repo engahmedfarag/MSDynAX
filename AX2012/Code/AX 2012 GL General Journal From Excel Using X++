@@ -1,0 +1,316 @@
+AX 2012 GL General Journal From Excel Using X++
+ Excel file format must be like in below sequence. If you want to add some more columns you can add after last column (Due). Please don't forget to write code for newly added columns.
+
+
+1. CurrencyCode
+2. AccountType
+3. AmountCurCredit
+4. AmountCurDebit
+5. TransDate
+6. LedgerDimension
+7. Txt
+8. OffsetAccountType
+9. OffsetLedgerDimension
+10. Company
+11. PostingProfile
+12. ExchangeRATE
+13. Invoice
+14. Due 
+
+
+static void Import_GeneralJournal(Args _args)
+{
+    SysExcelApplication                 application;
+    SysExcelWorkbooks                   workbooks;
+    SysExcelWorkbook                    workbook;
+    SysExcelWorksheets                  worksheets;
+    SysExcelWorksheet                   worksheet;
+    SysExcelCells                       cells;
+    COMVariantType                      type;
+    LedgerJournalName                   objLedgerJournalName,_objLedgerJournalName;
+    LedgerJournalTable                  objLedgerJournalTable;
+    LedgerJournalTrans                  objLedgerJournalTrans;
+    LedgerJournalTransTaxExtensionIN    objLedgerJournalTransTaxExtensionIN;
+    NumberSequenceTable                 objNumberSequenceTable;
+    LedgerJournalACType                 objLedgerJournalACType;
+    CustTable                           objCustTable;
+    VendTable                           objVendTable;
+    BankAccountTable                    objBankAccountTable;
+    MAINACCOUNT                         objMAINACCOUNT;
+    LedgerDimensionAccount              ledgerDim;
+    dev_CLS_AnyType2Str                 dev_CLS_AnyType2Str;
+    str 1000 strNumberSequenceName ,vch,_Msg;
+    int row=1,i = 1,_Sheets,_TotalSheets;
+    Dialog          dialog;
+    Filename        filename;
+    DialogField     dialogFilename;
+    container      conFilter = ["Microsoft Excel 97-2003 Worksheet (.xls)" ,"*.xlsx"];
+    dev_CLS_AnyType2Str = new dev_CLS_AnyType2Str();
+    application = SysExcelApplication::construct();
+    workbooks = application.workbooks();
+
+    dialog = new dialog("Import Excel File For General Journals");
+    dialogFileName = dialog.addField(extendedTypeStr(FilenameOpen), "Select File");
+    dialog.filenameLookupFilter(conFilter);
+    dialog.run();
+    //filename  = @"C:\Users\dhruv.thakar\Desktop\Final tax entries need to reverse 21112017 After updating on live server.xlsx";
+    filename = dialogFileName.value();
+    if(dialog.closedOk())
+    {
+        if(filename=="")
+        {
+            throw error("File not found");
+        }
+    }
+    if(filename!="")
+    {
+        try
+        {
+            workbooks.open(filename);
+        }
+        catch (Exception::Error)
+        {
+            workbook.close(false);
+            application.quit();
+            throw Error("File not found");
+        }
+        ttsBegin;
+        workbook = workbooks.item(1);
+        worksheets = workbook.worksheets();
+        for(_Sheets=1;_Sheets<=worksheets.count();_Sheets++)
+        {
+            row=1;
+            i=1;
+            worksheet = worksheets.itemFromNum(_Sheets);
+            cells = worksheet.cells();
+            strNumberSequenceName="";
+            vch="";
+            objLedgerJournalName.clear();
+            objLedgerJournalTable.clear();
+            _objLedgerJournalName.clear();
+            objLedgerJournalTrans.clear();
+            objLedgerJournalTransTaxExtensionIN.clear();
+            try
+            {
+                do
+                {
+                    row=row+1;
+                    if(i == 1)
+                    {
+                        select firstonly objLedgerJournalName where objLedgerJournalName.JournalName =="GEN_JRNL";
+                        objLedgerJournalTable.JournalName =objLedgerJournalName.JournalName;
+                        objLedgerJournalTable.initFromLedgerJournalName();
+                        objLedgerJournalTable.Name = objLedgerJournalTable.ledgerJournalName().Name;
+                        strNumberSequenceName=numberSeq::newGetNumFromCode('Gene_33').num();
+                        objLedgerJournalTable.JournalNum=strNumberSequenceName;
+                        objLedgerJournalTable.JournalType=LedgerJournalType::Daily;
+                        if(objLedgerJournalTable.validateWrite())
+                        {
+
+                            objLedgerJournalTable.insert();
+                        }
+                        else
+                        {
+                            _Msg="Sheet Name : "+worksheet.name()+" Error while inserting records in LedgerJournalTable for "+objLedgerJournalTable.JournalNum;
+                            workbook.close(false);
+                            application.quit();
+                            throw Error(_Msg);
+                        }
+                    }
+                    if(objLedgerJournalTable.RecId!=0)
+                    {
+                        _objLedgerJournalName.clear();
+                        select * from _objLedgerJournalName order by JournalName where _objLedgerJournalName.JournalType == LedgerJournalType::Daily && _objLedgerJournalName.JournalName == objLedgerJournalTable.JournalName;
+                        select * from objNumberSequenceTable where objNumberSequenceTable.RecId == _objLedgerJournalName.NumberSequenceTable;
+                        vch =  NumberSeq::newGetVoucherFromCode(objNumberSequenceTable.NumberSequence).voucher();
+                        if(vch=="")
+                        {
+                            _Msg="Sheet Name : "+worksheet.name()+" Voucher number is null";
+                            workbook.close(false);
+                            application.quit();
+                            throw Error(_Msg);
+                        }
+                        //this.formatValue(Types::String,cells.item(row, 1).value());
+                        objLedgerJournalTrans.Voucher=vch;
+                        objLedgerJournalTrans.LineNum=i;
+                        objLedgerJournalTrans.CurrencyCode=dev_CLS_AnyType2Str.formatValue(Types::String,cells.item(row,1).value()); //cells.item(row,1).value().bStr();
+                        objLedgerJournalTrans.AccountType=str2enum(objLedgerJournalACType,cells.item(row,2).value().bStr());
+                        objLedgerJournalTrans.AmountCurCredit=dev_CLS_AnyType2Str.formatValue(Types::Real,cells.item(row,3).value()); //cells.item(row,3).value().double();
+                        objLedgerJournalTrans.AmountCurDebit=dev_CLS_AnyType2Str.formatValue(Types::Real,cells.item(row,4).value());//cells.item(row,4).value().double();
+                        objLedgerJournalTrans.TransDate=dev_CLS_AnyType2Str.formatValue(Types::Date,cells.item(row,5).value()); //cells.item(row,5).value().date();
+                        if(objLedgerJournalTrans.AmountCurCredit==0 && objLedgerJournalTrans.AmountCurDebit==0)
+                        {
+                            _Msg=strFmt("Sheet Name : "+worksheet.name()+" Credit or Debit amount required Row Number %1",row);
+                            workbook.close(false);
+                            application.quit();
+                            throw Error(_Msg);
+                        }
+                        if(LedgerJournalACType::Bank==objLedgerJournalTrans.AccountType)
+                        {
+                            objBankAccountTable.clear();
+                            objBankAccountTable=BankAccountTable::find(dev_CLS_AnyType2Str.formatValue(Types::String,cells.item(row,6).value())); //cells.item(row,6).value().bStr()
+                            if(objBankAccountTable.RecId==0)
+                            {
+                                _Msg=strFmt("Sheet Name : "+worksheet.name()+" Main Account (Bank) not found for Row Number %1",row);
+                                workbook.close(false);
+                                application.quit();
+                                throw Error(_Msg);
+                            }
+                            objLedgerJournalTrans.LedgerDimension= DimensionStorage::getDynamicAccount(objBankAccountTable.AccountID,enum2int(LedgerJournalACType::Bank));
+                        }
+                        else if(LedgerJournalACType::Cust==objLedgerJournalTrans.AccountType)
+                        {
+                            objCustTable.clear();
+                            objCustTable=CustTable::find(dev_CLS_AnyType2Str.formatValue(Types::String,cells.item(row,6).value())); //cells.item(row,6).value().bStr()
+                            if(objCustTable.RecId==0)
+                            {
+                                _Msg=strFmt("Sheet Name : "+worksheet.name()+" Main Account (Customer) not found for Row Number %1",row);
+                                workbook.close(false);
+                                application.quit();
+                                throw Error(_Msg);
+                            }
+                            objLedgerJournalTrans.LedgerDimension= DimensionStorage::getDynamicAccount(objCustTable.AccountNum,enum2int(LedgerJournalACType::Cust));
+                        }
+                        else if(LedgerJournalACType::Vend==objLedgerJournalTrans.AccountType)
+                        {
+                            objVendTable.clear();
+                            objVendTable=VendTable::find(dev_CLS_AnyType2Str.formatValue(Types::String,cells.item(row,6).value())); //cells.item(row,6).value().bStr()
+                            if(objVendTable.RecId==0)
+                            {
+                                _Msg=strFmt("Sheet Name : "+worksheet.name()+" Main Account (Vendor) not found for Row Number %1",row);
+                                workbook.close(false);
+                                application.quit();
+                                throw Error(_Msg);
+                            }
+                            objLedgerJournalTrans.LedgerDimension= DimensionStorage::getDynamicAccount(objVendTable.AccountNum,enum2int(LedgerJournalACType::Vend));
+                        }
+                        else if(LedgerJournalACType::Ledger==objLedgerJournalTrans.AccountType)
+                        {
+
+                            ledgerDim = DimensionStorage::getDefaultAccountForMainAccountNum(dev_CLS_AnyType2Str.formatValue(Types::String,cells.item(row,6).value())); //cells.item(row,6).value().bStr();
+                            if(ledgerDim==0)
+                            {
+                                _Msg=strFmt("Sheet Name : "+worksheet.name()+" Main Account (Ledger) not found for Row Number %1",row);
+                                workbook.close(false);
+                                application.quit();
+                                throw Error(_Msg);
+                            }
+                            objLedgerJournalTrans.getLedgerDimensionForLedgerType(ledgerDim,curext());
+                            objLedgerJournalTrans.LedgerDimension =objLedgerJournalTrans.getLedgerDimensionForLedgerType(ledgerDim,curext());
+                        }
+
+                        objLedgerJournalTrans.Txt=dev_CLS_AnyType2Str.formatValue(Types::String,cells.item(row,7).value()); //cells.item(row,7).value().bStr();
+                        objLedgerJournalTrans.OffsetAccountType=str2enum(objLedgerJournalACType,cells.item(row,8).value().bStr());
+
+                        if(LedgerJournalACType::Bank==objLedgerJournalTrans.OffsetAccountType)
+                        {
+                            objBankAccountTable.clear();
+                            objBankAccountTable=BankAccountTable::find(dev_CLS_AnyType2Str.formatValue(Types::String,cells.item(row,9).value())); //cells.item(row,9).value().bStr()
+                            if(objBankAccountTable.RecId==0)
+                            {
+                                _Msg=strFmt("Sheet Name : "+worksheet.name()+" Offset Account (Bank) not found for Row Number %1",row);
+                                workbook.close(false);
+                                application.quit();
+                                throw Error(_Msg);
+                            }
+                            objLedgerJournalTrans.OffsetLedgerDimension= DimensionStorage::getDynamicAccount(objBankAccountTable.AccountID,enum2int(LedgerJournalACType::Bank));
+                        }
+                        else if(LedgerJournalACType::Cust==objLedgerJournalTrans.OffsetAccountType)
+                        {
+                            objCustTable.clear();
+                            objCustTable=CustTable::find(dev_CLS_AnyType2Str.formatValue(Types::String,cells.item(row,9).value())); //cells.item(row,9).value().bStr()
+                            if(objCustTable.RecId==0)
+                            {
+                                _Msg=strFmt("Sheet Name : "+worksheet.name()+" Offset Account (Customer) not found for Row Number %1",row);
+                                workbook.close(false);
+                                application.quit();
+                                throw Error(_Msg);
+                            }
+                            objLedgerJournalTrans.OffsetLedgerDimension= DimensionStorage::getDynamicAccount(objCustTable.AccountNum,enum2int(LedgerJournalACType::Cust));
+                        }
+                        else if(LedgerJournalACType::Vend==objLedgerJournalTrans.OffsetAccountType)
+                        {
+                            objVendTable.clear();
+                            objVendTable=VendTable::find(dev_CLS_AnyType2Str.formatValue(Types::String,cells.item(row,9).value())); //cells.item(row,9).value().bStr()
+                            if(objVendTable.RecId==0)
+                            {
+                                _Msg=strFmt("Sheet Name : "+worksheet.name()+" Offset Account (Vendor) not found for Row Number %1",row);
+                                 workbook.close(false);
+                                application.quit();
+                                throw Error(_Msg);
+                            }
+                            objLedgerJournalTrans.OffsetLedgerDimension= DimensionStorage::getDynamicAccount(objVendTable.AccountNum,enum2int(LedgerJournalACType::Vend));
+                        }
+                        else if(LedgerJournalACType::Ledger==objLedgerJournalTrans.OffsetAccountType)
+                        {
+                            ledgerDim = DimensionStorage::getDefaultAccountForMainAccountNum(dev_CLS_AnyType2Str.formatValue(Types::String,cells.item(row,9).value())); //cells.item(row,9).value().bStr()
+                            if(ledgerDim==0)
+                            {
+                                _Msg=strFmt("Sheet Name : "+worksheet.name()+" Offset Account (Ledger) not found for Row Number %1",row);
+                                workbook.close(false);
+                                application.quit();
+                                throw Error(_Msg);
+                            }
+                            objLedgerJournalTrans.getLedgerDimensionForLedgerType(ledgerDim,curext());
+                            objLedgerJournalTrans.OffsetLedgerDimension =objLedgerJournalTrans.getLedgerDimensionForLedgerType(ledgerDim,curext());
+                        }
+                        else
+                        {
+                            ledgerDim=0;
+                            objLedgerJournalTrans.OffsetLedgerDimension =0;
+                        }
+
+                        objLedgerJournalTrans.Company=dev_CLS_AnyType2Str.formatValue(Types::String,cells.item(row,10).value()); //cells.item(row,10).value().bStr();
+                        objLedgerJournalTrans.PostingProfile=dev_CLS_AnyType2Str.formatValue(Types::String,cells.item(row,11).value()); //cells.item(row,11).value().bStr();
+                        objLedgerJournalTrans.ExchRate=dev_CLS_AnyType2Str.formatValue(Types::Real,cells.item(row,12).value());cells.item(row,12).value().double();
+                        if(objLedgerJournalTrans.ExchRate==0)
+                        {
+
+                            _Msg=strFmt("Sheet Name : "+worksheet.name()+" ExchRate found Zero for Row Number %1",row);
+                            workbook.close(false);
+                            application.quit();
+                            throw Error(_Msg);
+                        }
+                        objLedgerJournalTrans.Invoice=dev_CLS_AnyType2Str.formatValue(Types::String,cells.item(row,13).value()); //cells.item(row,13).value().bStr();
+                        objLedgerJournalTrans.Due=dev_CLS_AnyType2Str.formatValue(Types::Date,cells.item(row,14).value()); //cells.item(row,14).value().date();
+                        objLedgerJournalTrans.JournalNum =objLedgerJournalTable.JournalNum;
+                        objLedgerJournalTrans.OffsetCompany=curext();
+
+                        if(objLedgerJournalTrans.validateWrite())
+                        {
+                            objLedgerJournalTrans.insert();
+                            if(objLedgerJournalTrans.RecId)
+                            {
+                                objLedgerJournalTransTaxExtensionIN.clear();
+                                objLedgerJournalTransTaxExtensionIN.LedgerJournalTrans = objLedgerJournalTrans.RecId;
+                                objLedgerJournalTransTaxExtensionIN.TaxInformation_IN = TaxInformation_IN::findDefaultbyLocation(CompanyInfo::find().postalAddress().Location).RecId;
+                                objLedgerJournalTransTaxExtensionIN.insert();
+                            }
+                        }
+                        else
+                        {
+                            _Msg=strFmt("Sheet Name : "+worksheet.name()+" Error while inserting records in LedgerJournalTrans for Line Number %1",objLedgerJournalTrans.LineNum);
+                            workbook.close(false);
+                            application.quit();
+                            throw Error(_Msg);
+                        }
+                        i++;
+                        type = cells.item(row+1, 1).value().variantType();
+                    }
+                }
+                while (type != COMVariantType::VT_EMPTY);
+                info(strFmt("For Sheet "+worksheet.name()+" Journal Created :%1 and Lines Created %2",objLedgerJournalTable.JournalNum,i-1));
+            }
+            catch(Exception::Error)
+            {
+                workbook.close(false);
+                application.quit();
+                ttsAbort;
+            }
+        }
+        ttsCommit;
+        workbook.close(false);
+        application.quit();
+    }
+
+}
