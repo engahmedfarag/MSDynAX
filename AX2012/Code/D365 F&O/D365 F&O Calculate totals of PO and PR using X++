@@ -1,0 +1,56 @@
+D365 F&O Calculate totals of PO / PR using X++
+ 
+
+Select Totals. If you don’t see the Totals action, select the Purchase Order / Purchase Requisition tab on the action bar.
+This dialog box shows totals for the whole order.
+The Selection field allows you to change the basis of how totals are calculated. For example, you could choose Product receipt quantity to show totals that relate to the amount of the product(s) that have been received, or Ordered quantity to show the amount of product that was ordered.
+Select OK.
+
+
+
+
+
+Total amount of Purchase order in Microsoft Dynamics 365 for Finance and Operations
+
+1 -  Purchase Order
+Create a runnable class (job) named as CalculateTotalsOfPurchaseOrder
+Copy the below code and paste in the newly created class
+Change the Purchase order id according to your system’s data
+Execute the job
+
+class CalculateTotalsOfPurchaseOrder
+{
+    public static void main(Args _args)
+    {
+        //Calculate totals per Purchase order
+        PurchTotals purchTotals;
+        PurchTable  purchTable  = PurchTable::find('PO.001118'); //Change the Purchase Order Id as per your system's data
+        AmountCur   totalAmount;
+        purchTotals = PurchTotals::newPurchTable(purchTable);
+        purchTotals.calc();
+        totalAmount = purchTotals.purchTotalAmount();
+        info(strFmt("Purchase order: %1 - Total Amount: %2", purchTable.PurchId, totalAmount));
+    }
+}
+
+
+2 -  Purchase Requisitions
+Create a runnable class (job) named as CalculateTotalsOfPurchaseRequisitions
+Copy the below code and paste in the newly created class
+Change the Purchase order id according to your system’s data
+Execute the job
+
+class CalculateTotalsOfPurchaseRequisitions
+{
+    public static void main(Args _args)
+    {
+       //Calculate totals per Purchase Requisition 
+         
+        PurchReqTable    purchReqTable  = purchReqTable::find('PR.003338'); //Change the Purchase Requisition Id as per your system's data
+        AmountCur   totalAmount;
+        PurchReqTotals purchreqtotal = PurchReqTotals::construct(purchReqTable);
+        purchreqtotal.calc();
+        totalAmount = purchreqtotal.totalAmount();
+        info(strFmt("Purchase Requisition %1 - Total Amount: %2", purchReqTable.PurchReqId, totalAmount));
+    }
+}
