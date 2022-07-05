@@ -1,0 +1,49 @@
+D365 F&O / AX 2012 Create a payment journal x++ - Account Payable
+
+
+
+    LedgerJournalTable jourTable;
+    LedgerJournalTrans jourTrans;
+    LedgerJournalTableData jourTableData;
+    JournalTransData jourTransData;
+    LedgerJournalStatic jourStatic;
+    DimensionDynamicAccount ledgerDim;
+    DimensionDynamicAccount offsetLedgerDim;
+    NumberSeq numberseq;
+
+  ttsBegin;
+
+    ledgerDim = DimensionStorage::getDynamicAccount('29901-00162',LedgerJournalACType::Vend);
+    offsetLedgerDim = AxdDimensionUtil::getLedgerAccountId(['1213011','1213011',1,'Vendor','29901-00162']); //DimensionStorage::getDynamicAccount('NBE.SAR',LedgerJournalACType::Bank);
+    jourTableData = JournalTableData::newTable(jourTable);
+
+    jourTable.JournalNum = jourTableData.nextJournalId();
+    jourTable.JournalType = LedgerJournalType::Payment;
+    jourTable.JournalName = '207';
+    jourTableData.initFromJournalName(LedgerJournalName::find(jourTable.JournalName));
+    
+    jourStatic = jourTableData.journalStatic();
+    jourTransData = jourStatic.newJournalTransData(jourTrans, jourTableData);
+    jourTransData.initFromJournalTable();
+
+    jourTrans.CurrencyCode ='SAR';
+    jourTrans.initValue();
+    numberseq = NumberSeq::NewGetVoucherFromCode('207');
+    jourTrans.TransDate = systemDateGet();
+    jourTrans.AccountType = LedgerJournalACType::Vend;
+    jourTrans.LedgerDimension = ledgerDim;
+    jourTrans.Txt = 'Vendor payment journal demo';
+    jourTrans.OffsetAccountType = LedgerJournalACType::Ledger;
+    jourTrans.OffsetLedgerDimension = offsetLedgerDim;
+    jourTrans.AmountCurDebit = 1000;
+    
+    //jourTransData.create();
+
+    jourTable.insert();
+    jourTransData.insert();
+    
+    ttsCommit;
+    
+    info(strFmt("Journal '%1' has been created", jourTable.JournalNum));
+
+    ttsCommit; 
