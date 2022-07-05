@@ -1,0 +1,36 @@
+Here I'm sharing code for Settle Vendor Invoice/Payment through X++  
+
+Code:
+-----------
+static void VendorSettlement(Args _args)
+{
+VendTable vendTable;
+VendTrans invVendTrans, payVendTrans;
+SpecTransManager manager;
+CustVendTransData custVendTransData;
+;
+vendTable = VendTable::find("12345");
+// Find the oldest unsettled invoice
+select firstonly invVendTrans  order by TransDate asc
+                            where invVendTrans.AccountNum == vendTable.AccountNum &&
+                            invVendTrans.TransType == LedgerTransType::Purch &&
+                            !invVendTrans.closed;
+// Find the oldest unsettled payment
+select firstonly payVendTrans order by TransDate asc
+                    where payVendTrans.AccountNum == vendTable.AccountNum &&
+                    payVendTrans.TransType == LedgerTransType::Payment &&
+                    !payVendTrans.closed;
+ttsbegin;
+// Create an object of the CustVendTransData class with the invoice transaction as parameter
+custVendTransData = CustVendTransData::construct(invVendTrans);
+// Mark it for settlement
+custVendTransData.markForSettlement(vendTable);
+// Create an object of the CustVendTransData class with the payment transaction as parameter
+custVendTransData = CustVendTransData::construct(payVendTrans);
+//mark it for settlement
+custVendTransData.markForSettlement(vendTable);
+ttscommit;
+// Settle all marked transactions
+if(VendTrans::settleTransact(vendTable, null, true,SettleDatePrinc::DaysDate, systemdateget()))
+info("Transactions settled");
+}
