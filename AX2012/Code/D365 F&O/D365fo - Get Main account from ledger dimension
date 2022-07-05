@@ -1,0 +1,25 @@
+D365fo - Get Main account from ledger dimension
+ Dimensions in Microsoft Dynamics 365 for Finance and Operations or in Microsoft Dynamics AX 2012 are always have a very important role. Playing with dimensions is always a hectic thing. To get main account from ledger dimension in D365FO is a very common requirement.
+
+
+
+In this article, you will get the one line code to get the Main Account from Ledger Dimension using LedgerDimensionFacade class. See the following code:
+
+//Get MainAccountId from LedgerDimension
+
+//The argument (LedgerDimensionValue) is LedgerDimension which you can get from table or any other source 
+as per your requirement
+
+info(strFmt("%1",LedgerDimensionFacade::getMainAccountFromLedgerDimension(LedgerDimensionValue).MainAccountId));
+
+//Get Name of MainAccountId from LedgerDimension
+
+//The argument (LedgerDimensionValue) is LedgerDimension which you can get from table or any other source as per your requirement
+
+info(strFmt("%1",LedgerDimensionFacade::getMainAccountFromLedgerDimension(LedgerDimensionValue).Name));
+
+                            
+          
+
+In this way, you can get Main Account from Ledger Dimension in D365FO. If this helps you, please Like, Comment and Share to help other people.
+
